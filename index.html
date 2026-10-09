@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>1% 배터리 생존 (1% Battery Survival)</title>
+    <style>
+        /* Base styles & Dark Mode */
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #121212;
+            color: #ffffff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        #app {
+            position: relative;
+            width: 600px;
+            height: 700px;
+        }
+
+        /* Screens */
+        .screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(18, 18, 18, 0.95);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+            text-align: center;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        /* Start Screen Styling */
+        h1 {
+            font-size: 2.5rem;
+            color: #4da8da;
+            text-shadow: 0 0 10px #4da8da;
+            margin-bottom: 20px;
+        }
+
+        .instructions {
+            background-color: #1e1e1e;
+            padding: 20px;
+            border-radius: 10px;
+            width: 85%;
+            text-align: left;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            line-height: 1.5;
+            font-size: 0.95rem;
+        }
+
+        .instructions h3 {
+            margin-top: 0;
+            color: #ffd700;
+            margin-bottom: 10px;
+        }
+
+        .instructions ul, .instructions ol {
+            margin-left: -10px;
+            margin-bottom: 10px;
+        }
+
+        .upgrade-text {
+            color: #f1c40f;
+            font-weight: bold;
+        }
+        .battery-text {
+            color: #00ffff;
+            font-weight: bold;
+        }
+
+        .btn {
+            padding: 15px 40px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #fff;
+            background-color: #4da8da;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 0 10px rgba(77, 168, 218, 0.5);
+        }
+
+        .btn:hover {
+            background-color: #3b8bb8;
+            box-shadow: 0 0 15px rgba(77, 168, 218, 0.8);
+            transform: scale(1.05);
+        }
+
+        .btn.red {
+            background-color: #da4d4d;
+            box-shadow: 0 0 10px rgba(218, 77, 77, 0.5);
+        }
+        .btn.red:hover {
+            background-color: #b83b3b;
+            box-shadow: 0 0 15px rgba(218, 77, 77, 0.8);
+        }
+
+        /* In-game UI */
+        #game-ui {
+            width: 100%;
+            height: 100px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            background-color: #1a1a1a;
+            border-bottom: 2px solid #333;
+            box-sizing: border-box;
+            padding: 0 20px;
+        }
+
+        .ui-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            width: 100%;
+        }
+
+        #stage-info {
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: #fff;
+            width: 25%;
+            text-align: left;
+        }
+
+        #stats-ui {
+            font-size: 0.95rem;
+            color: #ccc;
+            font-weight: bold;
+            width: 50%;
+            text-align: center;
+        }
+
+        #timer-ui {
+            width: 25%;
+            text-align: right;
+            font-size: 1.2rem;
+            color: #da4d4d;
+            font-weight: bold;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .battery-container {
+            width: 100%;
+            height: 25px;
+            background-color: #333;
+            border-radius: 12px;
+            position: relative;
+            overflow: hidden;
+            border: 2px solid #555;
+            flex-shrink: 0;
+        }
+
+        #battery-bar {
+            height: 100%;
+            width: 100%;
+            background-color: #2ecc71; /* Green */
+            transition: width 0.3s ease, background-color 0.3s ease;
+        }
+
+        #battery-text-indicator {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-weight: bold;
+            font-size: 0.9rem;
+            color: #fff;
+            text-shadow: 1px 1px 2px #000;
+        }
+
+        /* Game Canvas */
+        #game-canvas {
+            background-color: #000000;
+            display: block;
+        }
+    </style>
+</head>
+<body>
+
+<div id="app">
+    <!-- Start Screen -->
+    <div id="start-screen" class="screen">
+        <h1>1% 배터리 생존</h1>
+        <div class="instructions">
+            <h3>🎮 조작법</h3>
+            <ul>
+                <li><strong>[방향키]</strong>: 상하좌우 이동</li>
+                <li><strong>[스페이스바]</strong>: 플래시 켜기</li>
+            </ul>
+            <h3>⚠️ 생존 규칙</h3>
+            <ol>
+                <li>스페이스바를 누르면 플래시가 켜지며 벽과 함정이 보입니다.</li>
+                <li>플래시 사용 시 배터리가 소모됩니다. (0%가 되면 게임 오버)</li>
+                <li><strong>제한 시간</strong> 내에 도착하지 못하거나 <strong>함정</strong>에 닿으면 게임 오버!</li>
+                <li><strong>1라운드 25초</strong>로 시작하여, 라운드마다 <strong>5초씩 감소</strong>합니다. 빠르고 정확하게 움직이세요!</li>
+            </ol>
+            <h3>💎 업그레이드 아이템 (어둠 속에서 빛남)</h3>
+            <ul>
+                <li><span class="upgrade-text">🪙 야광 코인(노란색)</span>: 획득 시 영구적으로 플래시 지속 시간 <strong>+0.2초</strong> 증가!</li>
+                <li><span class="battery-text">🔋 배터리(하늘색)</span>: 획득 시 영구적으로 플래시 1회당 배터리 소모량 <strong>-3%</strong> 감소!</li>
+            </ul>
+        </div>
+        <button class="btn" id="start-btn">게임 시작하기</button>
+    </div>
+
+    <!-- Game Screen -->
+    <div id="game-screen" class="hidden">
+        <div id="game-ui">
+            <div class="ui-header">
+                <div id="stage-info">Stage 1</div>
+                <div id="stats-ui">
+                    🪙 <span id="flash-time-val" class="upgrade-text">0.5</span>초 &nbsp;|&nbsp; 
+                    🔋 <span id="flash-cost-val" class="battery-text">15</span>%
+                </div>
+                <div id="timer-ui">
+                    ⏳ <span id="time-left">25</span>초
+                </div>
+            </div>
+            <div class="battery-container">
+                <div id="battery-bar"></div>
+                <div id="battery-text-indicator">100%</div>
+            </div>
+        </div>
+        <canvas id="game-canvas" width="600" height="600"></canvas>
+    </div>
+
+    <!-- Stage Clear Screen -->
+    <div id="stage-clear-screen" class="screen hidden">
+        <h1>Stage Clear!</h1>
+        <p style="font-size:1.2rem; margin-bottom: 30px;">목적지에 무사히 도착했습니다!</p>
+        <button class="btn" id="next-stage-btn">다음 스테이지</button>
+    </div>
+
+    <!-- All Clear Screen -->
+    <div id="all-clear-screen" class="screen hidden">
+        <h1 style="color: #2ecc71; text-shadow: 0 0 10px #2ecc71;">Game All Clear!</h1>
+        <p style="font-size:1.2rem; margin-bottom: 30px;">축하합니다! 총 5개의 스테이지를 생존했습니다.</p>
+        <button class="btn" id="restart-win-btn">처음부터 다시하기</button>
+    </div>
+
+    <!-- Game Over Screen -->
+    <div id="game-over-screen" class="screen hidden">
+        <h1 style="color: #da4d4d; text-shadow: 0 0 10px #da4d4d;">Game Over</h1>
+        <p id="game-over-reason" style="font-size:1.2rem; margin-bottom: 30px;">배터리가 방전되었습니다.</p>
+        <button class="btn red" id="restart-btn">다시 시작하기</button>
+    </div>
+</div>
+
+<script>
+    // --- Constants & Config ---
+    const TILE_SIZE = 40;
+    const CANVAS_SIZE = 600; 
+    const PLAYER_SIZE = 20; 
+    const GOAL_SIZE = 28;
+    // Speed increased significantly to make a 5-second stage physically possible
+    const SPEED = 8; 
+    
+    // Base Values
+    const BASE_FLASH_DURATION = 500; // ms
+    const BASE_FLASH_COST = 15; // %
+
+    // --- State Variables ---
+    let currentStage = 0;
+    let battery = 100;
+    let isFlashing = false;
+    let flashTimeout = null;
+    let gameState = 'start'; 
+    let animationId = null;
+
+    let timeRemaining = 0;
+    let lastTime = 0;
+
+    // Upgrades
+    let coinsCollected = 0;
+    let batteriesCollected = 0;
+
+    let player = { x: 0, y: 0, w: PLAYER_SIZE, h: PLAYER_SIZE };
+    let goal = { x: 0, y: 0, w: GOAL_SIZE, h: GOAL_SIZE };
+    let grid = [];
+
+    // Keys state
+    const keys = {
+        ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false,
+        w: false, s: false, a: false, d: false
+    };
+    let spacePressed = false;
+
+    // --- DOM Elements ---
+    const canvas = document.getElementById('game-canvas');
+    const ctx = canvas.getContext('2d');
+    
+    const screens = {
+        start: document.getElementById('start-screen'),
+        game: document.getElementById('game-screen'),
+        clear: document.getElementById('stage-clear-screen'),
+        allClear: document.getElementById('all-clear-screen'),
+        over: document.getElementById('game-over-screen')
+    };
+
+    const ui = {
+        stageInfo: document.getElementById('stage-info'),
+        batteryBar: document.getElementById('battery-bar'),
+        batteryText: document.getElementById('battery-text-indicator'),
+        overReason: document.getElementById('game-over-reason'),
+        flashTimeVal: document.getElementById('flash-time-val'),
+        flashCostVal: document.getElementById('flash-cost-val'),
+        timeLeft: document.getElementById('time-left'),
+        timerUi: document.getElementById('timer-ui')
+    };
+
+    // --- Maps (0:Empty, 1:Wall, 2:Trap, P:Player, G:Goal, C:Coin, B:Battery) ---
+    const stages = [
+        // Stage 1: Easy Maze, introduces items
+        [
+            [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+            [1,'P',0,0,0,0,0,1,1,1,1,'C',0,0,1],
+            [1,1,1,0,1,1,0,1,1,0,0,0,1,0,1],
+            [1,0,0,0,0,0,0,0,1,1,1,0,1,0,1],
+            [1,0,1,1,1,1,1,0,0,0,0,0,1,0,1],
+            [1,0,0,0,0,0,0,0,1,1,1,0,1,0,1],
+            [1,0,1,1,1,1,1,1,0,0,1,0,0,0,1],
+            [1,0,1,'B',0,0,1,1,0,1,1,0,1,0,1], 
+            [1,0,1,0,1,0,1,1,0,1,1,0,1,0,1],
+            [1,0,1,0,1,0,0,0,0,0,0,0,1,0,1],
+            [1,0,1,1,1,1,1,0,1,1,1,1,1,0,1],
+            [1,0,0,0,1,1,1,0,1,'C',0,0,1,0,1],
+            [1,0,1,0,1,1,1,0,1,0,1,0,1,0,1],
+            [1,0,0,0,0,0,0,0,1,0,1,0,1,'G',1],
+            [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+        ],
+        // Stage 2: Introduce Traps + Items
+        [
+            [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+            [1,'P',0,0,0,0,2,1,1,1,1,'C',0,0,1],
+            [1,1,1,0,1,1,0,1,1,2,0,0,1,0,1],
+            [1,0,0,0,0,0,0,0,1,1,1,0,1,0,1],
+            [1,2,1,1,1,1,1,0,0,2,0,0,1,0,1],
+            [1,0,0,0,0,0,0,0,1,1,1,0,1,0,1],
+            [1,0,1,1,1,1,1,1,0,2,1,0,2,0,1],
+            [1,0,1,0,2,'C',1,1,0,1,1,0,1,0,1],
+            [1,0,1,0,1,0,1,1,0,1,1,0,1,0,1],
+            [1,0,1,2,1,0,0,0,0,0,0,0,1,0,1],
+            [1,0,1,1,1,1,1,0,1,1,1,1,1,0,1],
+            [1,0,0,0,1,1,1,0,1,0,2,'B',1,0,1],
+            [1,0,1,0,1,1,1,0,1,0,1,0,1,0,1],
+            [1,0,0,0,0,0,0,0,1,2,1,2,1,'G',1],
+            [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+        ],
+        // Stage 3: Moderate Maze with Traps & Items
+        [
+            [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+            [1,'P',1,1,1,0,0,0,1,0,0,0,1,2,1],
+            [1,0,1,2,1,0,1,0,1,0,1,0,1,'C',1],
+            [1,0,1,0,1,0,1,0,1,0,1,0,1,2,1],
+            [1,0,1,0,1,0,1,0,1,0,1,0,1,0,1],
+            [1,0,1,0,1,0,1,0,0,0,1,0,1,0,1],
+            [1,0,1,0,1,0,1,1,1,1,1,0,1,0,1],
+            [1,0,0,0,1,0,0,0,0,2,1,0,1,0,1],
+            [1,1,1,0,1,0,1,0,1,1,1,0,1,0,1],
+            [1,2,1,0,1,0,1,0,1,2,1,0,1,0,1],
+            [1,'B',1,0,1,0,1,0,1,0,1,0,1,0,1],
+            [1,0,1,0,1,0,1,0,0,0,0,0,1,0,1],
+            [1,0,1,0,1,0,1,0,1,2,1,1,1,0,1],
+            [1,0,0,0,0,0,1,0,0,'C',0,0,0,'G',1],
+            [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+        ],
+        // Stage 4: Winding Sine Wave Path
+        [
+            [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+            [1,'P',0,1,0,0,0,1,0,0,0,1,2,0,1],
+            [1,1,0,1,0,1,0,1,0,1,0,1,1,0,1],
+            [1,0,0,0,0,1,0,0,0,1,0,0,0,0,1],
+            [1,0,1,1,1,1,1,1,0,1,1,1,1,0,1],
+            [1,0,0,0,0,0,0,1,0,1,'C',0,1,0,1],
+            [1,1,1,1,1,1,0,1,0,1,1,0,1,0,1],
+            [1,0,0,0,0,1,0,1,0,0,0,0,1,0,1],
+            [1,0,1,1,0,1,0,1,1,1,1,1,1,0,1],
+            [1,0,1,'B',0,1,0,0,0,0,0,0,1,0,1],
+            [1,0,1,1,1,1,1,1,1,1,1,0,1,0,1],
+            [1,0,0,0,0,0,0,0,0,0,1,0,1,0,1],
+            [1,1,1,1,1,1,1,1,1,0,1,0,1,0,1],
+            [1,2,0,'C',0,0,0,0,1,0,0,0,1,'G',1],
+            [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+        ],
+        // Stage 5: Final Spiral Challenge (Perfectly unblocked logic)
+        [
+            [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+            [1,'P',0,0,0,0,0,0,0,0,0,0,0,0,1], // R1: Main Path (0) to C13
+            [1,1,2,1,1,1,1,1,1,1,1,1,1,0,1], // R2: Trap branch at C2
+            [1,1,1,0,0,0,0,0,0,0,0,0,2,0,1], // R3: Main Path from C13 to C3, Trap branch at C12
+            [1,1,1,0,1,1,1,1,1,1,1,0,1,0,1], // R4: Walls
+            [1,1,1,0,2,0,0,0,0,0,1,0,1,0,1], // R5: Main Path from C3 to C9, Trap branch at C4
+            [1,1,1,0,1,0,1,1,1,0,1,0,1,0,1], // R6: Walls
+            [1,1,1,0,1,0,1,'G',1,0,1,0,1,0,1], // R7: Main Path C7->Goal
+            [1,1,1,0,1,0,1,0,1,0,1,0,1,0,1], // R8: Walls
+            [1,1,1,0,'B',0,1,0,0,0,1,0,1,0,1], // R9: Main Path C9 to C7, Battery branch at C4
+            [1,1,1,0,1,0,1,1,1,1,1,0,1,0,1], // R10: Walls
+            [1,1,1,0,0,0,0,0,0,0,0,0,'C',0,1], // R11: Main Path C11 to C5, Coin branch at C12
+            [1,1,1,0,1,1,1,1,1,1,1,1,1,0,1], // R12: Walls
+            [1,1,1,0,0,0,0,0,0,0,0,0,0,0,1], // R13: Main Path C3 to C13
+            [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+        ]
+    ];
+
+
+    // --- Input Handling ---
+    window.addEventListener('keydown', (e) => {
+        if (keys.hasOwnProperty(e.key)) {
+            keys[e.key] = true;
+        }
+        if (e.code === 'Space') {
+            if (gameState === 'playing' && !spacePressed) {
+                spacePressed = true;
+                triggerFlash();
+            }
+        }
+    });
+
+    window.addEventListener('keyup', (e) => {
+        if (keys.hasOwnProperty(e.key)) {
+            keys[e.key] = false;
+        }
+        if (e.code === 'Space') {
+            spacePressed = false;
+        }
+    });
+
+    // --- Core Functions ---
+    function showScreen(screenName) {
+        Object.values(screens).forEach(s => s.classList.add('hidden'));
+        screens[screenName].classList.remove('hidden');
+    }
+
+    function initGame(stageIndex, resetUpgrades=false) {
+        if (resetUpgrades) {
+            coinsCollected = 0;
+            batteriesCollected = 0;
+        }
+
+        currentStage = stageIndex;
+        battery = 100;
+        isFlashing = false;
+        clearTimeout(flashTimeout);
+        
+        // Timer Logic: 25 -> 20 -> 15 -> 10 -> 5
+        timeRemaining = 25 - (currentStage * 5); 
+        
+        updateStatsUI();
+        updateBatteryUI();
+        updateTimerUI();
+        
+        ui.stageInfo.innerText = `Stage ${currentStage + 1} / ${stages.length}`;
+        grid = JSON.parse(JSON.stringify(stages[currentStage]));
+
+        for (let r = 0; r < grid.length; r++) {
+            for (let c = 0; c < grid[r].length; c++) {
+                if (grid[r][c] === 'P') {
+                    player.x = c * TILE_SIZE + (TILE_SIZE - PLAYER_SIZE) / 2;
+                    player.y = r * TILE_SIZE + (TILE_SIZE - PLAYER_SIZE) / 2;
+                    grid[r][c] = 0;
+                } else if (grid[r][c] === 'G') {
+                    goal.x = c * TILE_SIZE + (TILE_SIZE - GOAL_SIZE) / 2;
+                    goal.y = r * TILE_SIZE + (TILE_SIZE - GOAL_SIZE) / 2;
+                }
+            }
+        }
+
+        gameState = 'playing';
+        showScreen('game');
+        
+        if (animationId) cancelAnimationFrame(animationId);
+        
+        lastTime = performance.now();
+        animationId = requestAnimationFrame(gameLoop);
+    }
+
+    function updateStatsUI() {
+        let currentFlashDuration = BASE_FLASH_DURATION + (coinsCollected * 200);
+        let currentFlashCost = Math.max(5, BASE_FLASH_COST - (batteriesCollected * 3));
+        
+        ui.flashTimeVal.innerText = (currentFlashDuration / 1000).toFixed(1);
+        ui.flashCostVal.innerText = currentFlashCost;
+    }
+
+    function updateTimerUI() {
+        let displayTime = Math.ceil(timeRemaining);
+        ui.timeLeft.innerText = displayTime;
+        
+        if (displayTime <= 5) {
+            ui.timerUi.style.color = '#ff0000';
+            ui.timerUi.style.textShadow = '0 0 5px #ff0000';
+        } else {
+            ui.timerUi.style.color = '#da4d4d';
+            ui.timerUi.style.textShadow = 'none';
+        }
+    }
+
+    function triggerFlash() {
+        if (battery <= 0) return;
+        
+        let cost = Math.max(5, BASE_FLASH_COST - (batteriesCollected * 3));
+        let dur = BASE_FLASH_DURATION + (coinsCollected * 200);
+
+        battery -= cost;
+        if (battery <= 0) battery = 0;
+        updateBatteryUI();
+
+        isFlashing = true;
+        clearTimeout(flashTimeout);
+        
+        flashTimeout = setTimeout(() => {
+            isFlashing = false;
+        }, dur);
+
+        if (battery === 0) {
+            setTimeout(() => gameOver("배터리가 모두 방전되었습니다!"), dur + 100);
+        }
+    }
+
+    function updateBatteryUI() {
+        ui.batteryBar.style.width = `${battery}%`;
+        ui.batteryText.innerText = `${battery}%`;
+
+        if (battery <= 30) {
+            ui.batteryBar.style.backgroundColor = '#da4d4d'; // Red
+        } else if (battery <= 60) {
+            ui.batteryBar.style.backgroundColor = '#f39c12'; // Orange
+        } else {
+            ui.batteryBar.style.backgroundColor = '#2ecc71'; // Green
+        }
+    }
+
+    function checkCollision(rect1, rect2) {
+        return (
+            rect1.x < rect2.x + rect2.w &&
+            rect1.x + rect1.w > rect2.x &&
+            rect1.y < rect2.y + rect2.h &&
+            rect1.y + rect1.h > rect2.y
+        );
+    }
+
+    function getCollidingTiles(rect) {
+        let tiles = [];
+        let startCol = Math.floor(rect.x / TILE_SIZE);
+        let endCol = Math.floor((rect.x + rect.w - 1) / TILE_SIZE);
+        let startRow = Math.floor(rect.y / TILE_SIZE);
+        let endRow = Math.floor((rect.y + rect.h - 1) / TILE_SIZE);
+
+        for (let r = startRow; r <= endRow; r++) {
+            for (let c = startCol; c <= endCol; c++) {
+                if (r >= 0 && r < grid.length && c >= 0 && c < grid[0].length) {
+                    tiles.push({ r, c, val: grid[r][c] });
+                }
+            }
+        }
+        return tiles;
+    }
+
+    function update(currentTime) {
+        if (gameState !== 'playing') return;
+
+        // Timer calculation
+        let deltaTime = (currentTime - lastTime) / 1000;
+        lastTime = currentTime;
+        
+        timeRemaining -= deltaTime;
+        if (timeRemaining <= 0) {
+            timeRemaining = 0;
+            updateTimerUI();
+            gameOver("시간 초과!");
+            return;
+        }
+        updateTimerUI();
+
+        // Movement
+        let dx = 0;
+        let dy = 0;
+
+        if (keys.ArrowUp || keys.w) dy -= SPEED;
+        if (keys.ArrowDown || keys.s) dy += SPEED;
+        if (keys.ArrowLeft || keys.a) dx -= SPEED;
+        if (keys.ArrowRight || keys.d) dx += SPEED;
+
+        // Move X and resolve wall collisions
+        player.x += dx;
+        let tilesX = getCollidingTiles(player);
+        for (let t of tilesX) {
+            if (t.val === 1) { // Wall
+                if (dx > 0) {
+                    player.x = t.c * TILE_SIZE - player.w;
+                } else if (dx < 0) {
+                    player.x = (t.c + 1) * TILE_SIZE;
+                }
+            }
+        }
+
+        // Move Y and resolve wall collisions
+        player.y += dy;
+        let tilesY = getCollidingTiles(player);
+        for (let t of tilesY) {
+            if (t.val === 1) { // Wall
+                if (dy > 0) {
+                    player.y = t.r * TILE_SIZE - player.h;
+                } else if (dy < 0) {
+                    player.y = (t.r + 1) * TILE_SIZE;
+                }
+            }
+        }
+
+        let centerPlayer = {
+            x: player.x + 4, y: player.y + 4, w: player.w - 8, h: player.h - 8
+        };
+        let currentTiles = getCollidingTiles(centerPlayer);
+        
+        for (let t of currentTiles) {
+            if (t.val === 2) {
+                gameOver("함정에 닿았습니다!");
+                return;
+            } else if (t.val === 'C') {
+                grid[t.r][t.c] = 0; // Remove item
+                coinsCollected++;
+                updateStatsUI();
+            } else if (t.val === 'B') {
+                grid[t.r][t.c] = 0; // Remove item
+                batteriesCollected++;
+                updateStatsUI();
+            }
+        }
+
+        if (checkCollision(player, goal)) {
+            stageClear();
+        }
+    }
+
+    function draw() {
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+
+        for (let r = 0; r < grid.length; r++) {
+            for (let c = 0; c < grid[r].length; c++) {
+                let tileX = c * TILE_SIZE;
+                let tileY = r * TILE_SIZE;
+                
+                if (grid[r][c] === 'C') {
+                    ctx.fillStyle = '#f1c40f';
+                    ctx.shadowColor = '#f1c40f';
+                    ctx.shadowBlur = 15;
+                    ctx.beginPath();
+                    ctx.arc(tileX + TILE_SIZE/2, tileY + TILE_SIZE/2, 8, 0, Math.PI*2);
+                    ctx.fill();
+                    ctx.shadowBlur = 0;
+                } else if (grid[r][c] === 'B') {
+                    ctx.fillStyle = '#00ffff';
+                    ctx.shadowColor = '#00ffff';
+                    ctx.shadowBlur = 15;
+                    ctx.fillRect(tileX + 12, tileY + 12, 16, 16);
+                    ctx.fillRect(tileX + 16, tileY + 8, 8, 4); 
+                    ctx.shadowBlur = 0;
+                }
+
+                if (isFlashing) {
+                    if (grid[r][c] === 1) {
+                        ctx.fillStyle = '#333333';
+                        ctx.fillRect(tileX, tileY, TILE_SIZE, TILE_SIZE);
+                        ctx.strokeStyle = '#444444';
+                        ctx.lineWidth = 2;
+                        ctx.strokeRect(tileX + 1, tileY + 1, TILE_SIZE - 2, TILE_SIZE - 2);
+                    } else if (grid[r][c] === 2) {
+                        ctx.fillStyle = '#da4d4d';
+                        ctx.fillRect(tileX + 5, tileY + 5, TILE_SIZE - 10, TILE_SIZE - 10);
+                        ctx.strokeStyle = '#b83b3b';
+                        ctx.lineWidth = 3;
+                        ctx.beginPath();
+                        ctx.moveTo(tileX + 5, tileY + 5);
+                        ctx.lineTo(tileX + TILE_SIZE - 5, tileY + TILE_SIZE - 5);
+                        ctx.moveTo(tileX + TILE_SIZE - 5, tileY + 5);
+                        ctx.lineTo(tileX + 5, tileY + TILE_SIZE - 5);
+                        ctx.stroke();
+                    }
+                }
+            }
+        }
+
+        ctx.fillStyle = '#2ecc71';
+        ctx.shadowColor = '#2ecc71';
+        ctx.shadowBlur = 15;
+        ctx.fillRect(goal.x, goal.y, goal.w, goal.h);
+        
+        ctx.fillStyle = '#ffffff';
+        ctx.shadowBlur = 0;
+        ctx.fillRect(goal.x + 8, goal.y + 8, goal.w - 16, goal.h - 16);
+
+        ctx.fillStyle = '#4da8da';
+        ctx.shadowColor = '#4da8da';
+        ctx.shadowBlur = 15;
+        ctx.fillRect(player.x, player.y, player.w, player.h);
+        ctx.shadowBlur = 0;
+    }
+
+    function gameLoop(currentTime) {
+        if (gameState === 'playing') {
+            update(currentTime);
+            draw();
+            animationId = requestAnimationFrame(gameLoop);
+        }
+    }
+
+    function gameOver(reason) {
+        gameState = 'over';
+        ui.overReason.innerText = reason;
+        showScreen('over');
+    }
+
+    function stageClear() {
+        gameState = 'clear';
+        if (currentStage + 1 < stages.length) {
+            showScreen('clear');
+        } else {
+            showScreen('allClear');
+        }
+    }
+
+    // --- Event Listeners ---
+    document.getElementById('start-btn').addEventListener('click', () => {
+        initGame(0, true);
+    });
+
+    document.getElementById('next-stage-btn').addEventListener('click', () => {
+        initGame(currentStage + 1);
+    });
+
+    document.getElementById('restart-btn').addEventListener('click', () => {
+        initGame(currentStage); 
+    });
+
+    document.getElementById('restart-win-btn').addEventListener('click', () => {
+        initGame(0, true); 
+    });
+
+</script>
+</body>
+</html>
